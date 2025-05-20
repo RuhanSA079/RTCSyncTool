@@ -7,6 +7,9 @@ This tool is intended as a experimental solution and way to communicate with the
 I do not take any responsibility for any damaged hardware or any sort of damage caused by this code, please use this code at your own risk!
 this code is marked as HIGHLY EXPERIMENTAL, please use this responsibly!
 
+# Changes
+I made a change that I saw that my tool were not able to talk to the chips, while setting the system time and setting the RTC time. (hctosys and systohc) while the driver is bound to the chips.
+
 # Reasons
 I wrote this code for a sample Linux gateway that had some trouble with the time sync, as it did not have any Linux kernel drivers compiled for this two types of RTC, 
 and were using a SVNS RTC as the RTC, instead of these two (BQ32K or a ISL1208), and had to demo this to some DevOps engineers.
