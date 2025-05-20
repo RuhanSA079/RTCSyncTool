@@ -20,6 +20,7 @@
  version 0.4 -> Added SYSTOHC for ISL1208. Improved driver bind check.
  version 0.5 -> Improve error messages, improve output and improved bind/unbind logic & filepaths.
  version 0.6 -> Add force command for the systohc and hctosys commands
+ version 0.7 -> Fixed 12/24h representation according to the ISL1208 datasheet
 */
 
 const uint8_t BQ32K = 0x68;
@@ -228,58 +229,47 @@ void processISL1208Time(uint8_t RTCseconds, uint8_t RTCminutes, uint8_t RTChours
     secondsCalc = BCDtoInt(RTCseconds);
     minutesCalc = BCDtoInt(RTCminutes);
 
-    //24 hour check
-    if ((RTChours & 0x80) == 1){
+    // 24-hour check fix
+    if ((RTChours & 0x80) != 0){
         isTwentyFourHours = true;
     }else{
         isTwentyFourHours = false;
     }
 
-    //Check the 24h period AM PM marker.
+    // Hour extraction corrected
     if (!isTwentyFourHours){
-        if ((RTChours & 0x20) == 1){
-            //Is PM.
-            //Convert to 24h!
-            hoursCalc = BCDtoInt((RTChours & 0x1F));
+        if ((RTChours & 0x20) != 0){
+            // PM
+            hoursCalc = BCDtoInt(RTChours & 0x1F);
             if (hoursCalc != 12){
                 hoursCalc += 12;
             }
         }else{
-            //
-            hoursCalc = BCDtoInt((RTChours & 0x1F));
+            // AM
+            hoursCalc = BCDtoInt(RTChours & 0x1F);
             if (hoursCalc == 12){
                 hoursCalc = 0;
             }
         }
     }else{
-        hoursCalc = BCDtoInt((RTChours & 0x1F));
+        // Corrected: Keep bits 6:0 for 24h BCD
+        hoursCalc = BCDtoInt(RTChours & 0x7F);
     }
 
     dayCalc = BCDtoInt(RTCday);
     monthCalc = BCDtoInt(RTCmonth);
-    yearCalc = (BCDtoInt(RTCyear) + 2000);
+    yearCalc = BCDtoInt(RTCyear) + 2000;
     weekdayCalc = BCDtoInt(RTCweekday);
-
-    // printf("Calculated hours: %d\n", hoursCalc);
-    // printf("Calculated minutes: %d\n", minutesCalc);
-    // printf("Calculated seconds: %d\n", secondsCalc);
-    // printf("Calculated day: %d\n", dayCalc);
-    // printf("Calculated month: %d\n", monthCalc);
-    // printf("Calculated year: %d\n", yearCalc);
-
 
     int dayOfWeekCalc = calculateDayOfWeek(dayCalc, monthCalc, yearCalc);
     int isClockRunning = (RTCseconds & 0x10);
 
-
-    //dayOfWeekCalc += 1;
     if (dayOfWeekCalc != RTCweekday){
         printf("WRN: RTC Weekday out of sync!\n");
         printf("RTC Weekday: %d\n", RTCweekday);
         printf("Calculated weekday: %d\n", dayOfWeekCalc);
     }
 
-    //hwclock output: 2019-09-20 11:08:05.566357+00:00
     if (isClockRunning == 0){
         printf("WRN: RTC Oscillator has stopped!\n");
     }
@@ -289,34 +279,28 @@ void processISL1208Time(uint8_t RTCseconds, uint8_t RTCminutes, uint8_t RTChours
         printf("TYP: ISL1208\n");
     }
 
-    //Set the system time from the RTC!
     if (setTime){
-        // Define the new time as a string
-        char* datetimeSet;
+        // Fixed: allocate buffer for datetime string
+        char datetimeSet[32];
         struct tm tm;
         struct timeval tv;
 
-        //convert the calculated RTC time to the date string.
         sprintf(datetimeSet, "%04d-%02d-%02d %02d:%02d:%02d", yearCalc, monthCalc, dayCalc, hoursCalc, minutesCalc, secondsCalc);
 
-        // Parse the date and time string
         if (strptime(datetimeSet, "%Y-%m-%d %H:%M:%S", &tm) == NULL) {
             fprintf(stderr, "TIME-DATE PARSE FAIL\n");
             return;
         }
 
-        // Convert the parsed time to a time_t (Unix timestamp)
         time_t t = mktime(&tm);
         if (t == -1) {
             printf("mktime() call failed!\n");
             return;
         }
 
-        // Set the timeval structure
         tv.tv_sec = t;
         tv.tv_usec = 0;
 
-        // Set the system time
         if (settimeofday(&tv, NULL) < 0) {
             printf("HCTOSYS FAIL\n");
             return;
@@ -833,7 +817,7 @@ int main(int argc, char *argv[]) {
     int rtcMonth;
     int rtcYear;
 
-    printf("RTCSyncTool v0.5 by RuhanSA079\n");
+    printf("RTCSyncTool v0.7 by RuhanSA079\n");
     rootCheck();
 
     if (argc == 1){
