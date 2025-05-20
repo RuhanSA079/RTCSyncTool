@@ -19,6 +19,7 @@
  version 0.3 -> Added driver probe (wip), added force unbind option, added system time printout, added SYSTOHC for BQ32K.
  version 0.4 -> Added SYSTOHC for ISL1208. Improved driver bind check.
  version 0.5 -> Improve error messages, improve output and improved bind/unbind logic & filepaths.
+ version 0.6 -> Add force command for the systohc and hctosys commands
 */
 
 const uint8_t BQ32K = 0x68;
@@ -856,8 +857,18 @@ int main(int argc, char *argv[]) {
         }
     }else if (strcmp(argv[1], "hctosys") == 0){
         action = CMD_ACTION_HCTOSYS;
+	if (argc > 2){
+            if (strcmp(argv[2], "force") == 0){
+                forceUnbindRebind = 1;
+            }
+        }
     }else if (strcmp(argv[1], "systohc") == 0){
         action = CMD_ACTION_SYSTOHC;
+	if (argc > 2){
+            if (strcmp(argv[2], "force") == 0){
+                forceUnbindRebind = 1;
+            }
+        }
     }else{
         printf("ERR: UNKNOWN COMMAND\n");
         exit(1);
